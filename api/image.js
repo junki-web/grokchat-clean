@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   const { action, messages, prompt } = req.body;
 
   try {
-    // action: "suggest" → プロンプト提案, "generate" → 画像生成
+    // action: "suggest" → プロンプト提案, "generate" → 画像生成。
     if (action === 'suggest') {
       // 会話の流れからプロンプトを提案
       const systemPrompt = `あなたは画像生成プロンプトの専門家です。会話の内容をもとに、重要なシーンの画像生成用のプロンプトを日本語で1つ提案してください。プロンプトのテキストのみを返してください。説明や引用符は不要です。`;
