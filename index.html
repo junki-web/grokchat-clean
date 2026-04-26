@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Grok Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --bg2: #111113;
+    --bg3: #1a1a1e;
+    --border: #2a2a30;
+    --text: #e8e8ec;
+    --text-dim: #6b6b78;
+    --text-muted: #3d3d45;
+    --accent: #7c6aff;
+    --accent2: #ff6a9e;
+    --user-bubble: #1e1b3a;
+    --ai-bubble: #13131a;
+    --radius: 18px;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    font-size: 16px;
+  }
+
+  .logo-icon {
+    width: 30px; height: 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+
+  .model-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+  }
+
+  .header-btns { display: flex; gap: 6px; align-items: center; }
+
+  .header-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 8px;
+    padding: 6px 11px;
+    font-family: var(--font);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .header-btn:active { opacity: 0.7; }
+
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  #messages::-webkit-scrollbar { width: 3px; }
+  #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .empty-state {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px;
+    text-align: center;
+    padding: 40px 20px;
+    animation: fadeIn 0.5s ease;
+  }
+  .empty-state .big-icon { font-size: 48px; margin-bottom: 4px; }
+  .empty-state h2 { font-size: 20px; font-weight: 500; color: var(--text); }
+  .empty-state p { font-size: 13px; color: var(--text-dim); max-width: 260px; line-height: 1.7; }
+
+  .msg {
+    display: flex; gap: 10px;
+    animation: slideUp 0.25s ease;
+    max-width: 100%;
+  }
+  .msg.user { flex-direction: row-reverse; }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; } to { opacity: 1; }
+  }
+
+  .avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    margin-top: 2px;
+  }
+  .avatar.ai { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+  .avatar.user { background: var(--bg3); border: 1px solid var(--border); color: var(--text-dim); }
+
+  .bubble {
+    max-width: calc(100% - 50px);
+    padding: 11px 15px;
+    border-radius: var(--radius);
+    font-size: 14.5px;
+    line-height: 1.65;
+    word-break: break-word;
+  }
+  .msg.ai .bubble {
+    background: var(--ai-bubble);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) var(--radius) 4px;
+  }
+  .msg.user .bubble {
+    background: var(--user-bubble);
+    border: 1px solid rgba(124,106,255,0.25);
+    border-radius: var(--radius) var(--radius) 4px var(--radius);
+  }
+
+  .msg.image-msg .bubble {
+    padding: 10px;
+    background: var(--ai-bubble);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) var(--radius) 4px;
+  }
+  .msg.image-msg .bubble img {
+    width: 100%; max-width: 320px;
+    border-radius: 12px; display: block;
+  }
+  .img-prompt-label {
+    font-size: 11px; color: var(--text-dim);
+    margin-top: 8px; font-family: var(--mono); line-height: 1.5;
+  }
+
+  .typing-dots { display: flex; gap: 4px; align-items: center; padding: 4px 2px; }
+  .typing-dots span {
+    width: 6px; height: 6px;
+    background: var(--text-dim); border-radius: 50%;
+    animation: blink 1.2s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink {
+    0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+
+  /* モーダル共通 */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 20px;
+    animation: fadeIn 0.2s ease;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal-inner {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 20px;
+    width: 100%; max-width: 480px;
+    display: flex; flex-direction: column;
+    gap: 14px;
+    max-height: 85dvh;
+    overflow-y: auto;
+  }
+
+  .modal-title {
+    font-size: 15px; font-weight: 500;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .field-label {
+    font-size: 11px; color: var(--text-dim);
+    font-family: var(--mono); letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+
+  .modal-textarea {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13.5px; line-height: 1.6;
+    padding: 12px 14px;
+    resize: none; outline: none;
+    transition: border-color 0.2s;
+  }
+  .modal-textarea:focus { border-color: var(--accent); }
+
+  .system-preview {
+    font-size: 12px; color: var(--text-dim);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: var(--mono); line-height: 1.5;
+    min-height: 36px;
+  }
+
+  .modal-actions { display: flex; gap: 10px; }
+
+  .btn-cancel {
+    flex: 1; padding: 12px;
+    background: none; border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text-dim);
+    font-family: var(--font); font-size: 14px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-cancel:active { opacity: 0.7; }
+
+  .btn-primary {
+    flex: 2; padding: 12px;
+    background: linear-gradient(135deg, var(--accent), #6057e8);
+    border: none; border-radius: 12px;
+    color: #fff; font-family: var(--font);
+    font-size: 14px; font-weight: 500; cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-primary:active { opacity: 0.85; transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  #modal-result { border-radius: 12px; overflow: hidden; display: none; }
+  #modal-result img { width: 100%; display: block; border-radius: 12px; }
+
+  .spin {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toolbar {
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .input-row {
+    display: flex; align-items: flex-end; gap: 8px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 8px 10px;
+    transition: border-color 0.2s;
+  }
+  .input-row:focus-within { border-color: rgba(124,106,255,0.4); }
+
+  .image-icon-btn {
+    width: 36px; height: 36px; flex-shrink: 0;
+    background: none; border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text-dim);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 17px; transition: all 0.2s;
+    align-self: flex-end; margin-bottom: 1px;
+  }
+  .image-icon-btn:active { background: var(--bg3); color: var(--accent2); }
+  .image-icon-btn.loading { animation: pulse 1s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  #chat-input {
+    flex: 1; background: none; border: none;
+    color: var(--text); font-family: var(--font);
+    font-size: 15px; line-height: 1.5;
+    resize: none; outline: none;
+    min-height: 22px; max-height: 120px;
+    overflow-y: auto; padding: 5px 2px;
+  }
+  #chat-input::placeholder { color: var(--text-muted); }
+
+  .send-btn {
+    width: 36px; height: 36px; flex-shrink: 0;
+    background: var(--accent); border: none;
+    border-radius: 10px; color: #fff;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 17px; transition: all 0.2s;
+    align-self: flex-end; margin-bottom: 1px;
+  }
+  .send-btn:active { opacity: 0.8; transform: scale(0.92); }
+  .send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  .toast {
+    position: fixed; bottom: 90px;
+    left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #3d1515; border: 1px solid #6b2525;
+    color: #ff9494; padding: 10px 18px;
+    border-radius: 30px; font-size: 13px;
+    z-index: 200; opacity: 0;
+    transition: all 0.3s; white-space: nowrap; max-width: 90vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">✦</div>
+    Grok Chat
+  </div>
+  <div class="model-badge">grok-3</div>
+  <div class="header-btns">
+    <button class="header-btn" onclick="openSettingsModal()">⚙️ 設定</button>
+    <button class="header-btn" onclick="clearChat()">クリア</button>
+  </div>
+</header>
+
+<div id="messages">
+  <div class="empty-state" id="empty-state">
+    <div class="big-icon">✦</div>
+    <h2>Grok Chat</h2>
+    <p>何でも聞いてください。<br>画像生成もできます。</p>
+  </div>
+</div>
+
+<!-- 画像生成モーダル -->
+<div class="modal-overlay" id="image-modal">
+  <div class="modal-inner">
+    <div class="modal-title">🖼 画像生成</div>
+    <div>
+      <div class="field-label">プロンプト — 編集できます</div>
+      <textarea id="prompt-edit" class="modal-textarea" rows="4" placeholder="画像の内容を入力..."></textarea>
+    </div>
+    <div id="modal-result"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeImageModal()">キャンセル</button>
+      <button class="btn-primary" id="gen-btn" onclick="generateImage()">
+        <span id="gen-btn-text">✦ 生成する</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- システムプロンプト設定モーダル -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal-inner">
+    <div class="modal-title">⚙️ システムプロンプト設定</div>
+    <div>
+      <div class="field-label">AIへの指示（キャラクター・口調・役割など）</div>
+      <textarea id="system-prompt-input" class="modal-textarea" rows="6"
+        placeholder="例：あなたは親切な料理の専門家です。レシピや調理法について詳しく教えてください。"></textarea>
+    </div>
+    <div class="field-label">現在の設定</div>
+    <div class="system-preview" id="system-prompt-preview">（未設定 — デフォルトのGrokとして動作します）</div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeSettingsModal()">キャンセル</button>
+      <button class="btn-primary" onclick="saveSystemPrompt()">✦ 保存する</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="toolbar">
+  <div class="input-row">
+    <button class="image-icon-btn" id="img-btn" onclick="openImageModal()" title="画像生成">🖼</button>
+    <textarea id="chat-input" placeholder="メッセージを入力..." rows="1"
+      oninput="autoResize(this)"
+      onkeydown="handleKey(event)"></textarea>
+    <button class="send-btn" id="send-btn" onclick="sendMessage()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  let conversationHistory = [];
+  let systemPrompt = '';
+  let isLoading = false;
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 768) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  function scrollToBottom() {
+    const el = document.getElementById('messages');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  function clearChat() {
+    conversationHistory = [];
+    document.getElementById('messages').innerHTML = `
+      <div class="empty-state" id="empty-state">
+        <div class="big-icon">✦</div>
+        <h2>Grok Chat</h2>
+        <p>何でも聞いてください。<br>画像生成もできます。</p>
+      </div>`;
+  }
+
+  // ── システムプロンプト ──
+  function openSettingsModal() {
+    document.getElementById('system-prompt-input').value = systemPrompt;
+    document.getElementById('settings-modal').classList.add('open');
+  }
+
+  function closeSettingsModal() {
+    document.getElementById('settings-modal').classList.remove('open');
+  }
+
+  function saveSystemPrompt() {
+    systemPrompt = document.getElementById('system-prompt-input').value.trim();
+    document.getElementById('system-prompt-preview').textContent =
+      systemPrompt || '（未設定 — デフォルトのGrokとして動作します）';
+    closeSettingsModal();
+    showToast(systemPrompt ? 'システムプロンプトを設定しました' : 'リセットしました');
+  }
+
+  document.getElementById('settings-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeSettingsModal();
+  });
+
+  // ── メッセージ描画 ──
+  function appendMessage(role, content, imageData, promptUsed) {
+    const empty = document.getElementById('empty-state');
+    if (empty) empty.remove();
+    const msgs = document.getElementById('messages');
+
+    if (imageData) {
+      const div = document.createElement('div');
+      div.className = 'msg ai image-msg';
+      div.innerHTML = `
+        <div class="avatar ai">✦</div>
+        <div class="bubble">
+          <img src="data:image/jpeg;base64,${imageData}" alt="Generated image">
+          ${promptUsed ? `<div class="img-prompt-label">📝 ${promptUsed}</div>` : ''}
+        </div>`;
+      msgs.appendChild(div);
+    } else {
+      const div = document.createElement('div');
+      div.className = `msg ${role}`;
+      const avatar = role === 'ai'
+        ? `<div class="avatar ai">✦</div>`
+        : `<div class="avatar user">You</div>`;
+      div.innerHTML = `${avatar}<div class="bubble">${escapeHtml(content)}</div>`;
+      msgs.appendChild(div);
+    }
+    scrollToBottom();
+  }
+
+  function appendTyping() {
+    const empty = document.getElementById('empty-state');
+    if (empty) empty.remove();
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'msg ai';
+    div.id = 'typing';
+    div.innerHTML = `<div class="avatar ai">✦</div><div class="bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+    msgs.appendChild(div);
+    scrollToBottom();
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typing');
+    if (t) t.remove();
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>');
+  }
+
+  // ── チャット送信 ──
+  async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text || isLoading) return;
+
+    isLoading = true;
+    document.getElementById('send-btn').disabled = true;
+    input.value = '';
+    input.style.height = 'auto';
+
+    appendMessage('user', text);
+    conversationHistory.push({ role: 'user', content: text });
+    appendTyping();
+
+    const messages = systemPrompt
+      ? [{ role: 'system', content: systemPrompt }, ...conversationHistory]
+      : conversationHistory;
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages }),
+      });
+      const data = await res.json();
+      removeTyping();
+
+      if (!res.ok) {
+        showToast('エラーが発生しました: ' + (data.error || res.status));
+        conversationHistory.pop();
+        return;
+      }
+
+      const reply = data.choices[0].message.content;
+      conversationHistory.push({ role: 'assistant', content: reply });
+      appendMessage('ai', reply);
+    } catch (err) {
+      removeTyping();
+      showToast('通信エラーが発生しました');
+      conversationHistory.pop();
+    } finally {
+      isLoading = false;
+      document.getElementById('send-btn').disabled = false;
+    }
+  }
+
+  // ── 画像生成 ──
+  async function openImageModal() {
+    const imgBtn = document.getElementById('img-btn');
+    imgBtn.classList.add('loading');
+    imgBtn.disabled = true;
+
+    document.getElementById('prompt-edit').value = '';
+    document.getElementById('modal-result').style.display = 'none';
+    document.getElementById('modal-result').innerHTML = '';
+    document.getElementById('gen-btn').disabled = false;
+    document.getElementById('gen-btn-text').textContent = '✦ 生成する';
+
+    try {
+      const res = await fetch('/api/image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'suggest', messages: conversationHistory.slice(-6) }),
+      });
+      const data = await res.json();
+      if (res.ok && data.prompt) {
+        document.getElementById('prompt-edit').value = data.prompt;
+      }
+    } catch (err) { /* 失敗しても無視 */ }
+    finally {
+      imgBtn.classList.remove('loading');
+      imgBtn.disabled = false;
+    }
+
+    document.getElementById('image-modal').classList.add('open');
+  }
+
+  function closeImageModal() {
+    document.getElementById('image-modal').classList.remove('open');
+  }
+
+  async function generateImage() {
+    const prompt = document.getElementById('prompt-edit').value.trim();
+    if (!prompt) { showToast('プロンプトを入力してください'); return; }
+
+    const genBtn = document.getElementById('gen-btn');
+    const genBtnText = document.getElementById('gen-btn-text');
+    genBtn.disabled = true;
+    genBtnText.innerHTML = '<div class="spin"></div>';
+    document.getElementById('modal-result').style.display = 'none';
+
+    try {
+      const res = await fetch('/api/image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'generate', prompt }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast('画像生成エラー: ' + (data.error || res.status));
+        return;
+      }
+
+      const b64 = data.data[0].b64_json;
+
+      const resultEl = document.getElementById('modal-result');
+      resultEl.innerHTML = `<img src="data:image/jpeg;base64,${b64}" alt="Generated">`;
+      resultEl.style.display = 'block';
+
+      appendMessage('ai', '', b64, prompt);
+      conversationHistory.push({ role: 'assistant', content: `[画像を生成しました: ${prompt}]` });
+
+      // 生成後プロンプトをクリア
+      document.getElementById('prompt-edit').value = '';
+
+    } catch (err) {
+      showToast('通信エラーが発生しました');
+    } finally {
+      genBtn.disabled = false;
+      genBtnText.textContent = '✦ 生成する';
+    }
+  }
+
+  document.getElementById('image-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeImageModal();
+  });
+
+  window.addEventListener('load', () => {
+    if (window.innerWidth > 768) document.getElementById('chat-input').focus();
+  });
+</script>
+</body>
+</html>
